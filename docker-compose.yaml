@@ -1,0 +1,70 @@
+services:
+  app:
+    build: .
+    container_name: migrate-app
+    ports:
+      - "9004:9004"
+      - "9008:9008"
+    volumes:
+      - ./activecollab/:/app
+      - .init.sh:/app/init.sh
+      - .env:/app/.env
+      - .migrate.sh:/app/migrate.sh
+    networks:
+      - migrate-activecollab
+  mysql:
+    image: mysql:8.0
+    container_name: migrate-db
+    ports:
+      - "3366:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: 'activecollab'
+      MYSQL_USER: 'root'
+      MYSQL_PASSWORD: 'root'
+    networks:
+      - migrate-activecollab
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-flush-log-at-trx-commit=0
+      - --innodb_buffer_pool_size=1G
+      - --skip-log-bin
+    restart: unless-stopped
+    # Add health check
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  phpmyadmin:
+    container_name: migrate-phpmyadmin
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8889:80
+    environment:
+      - PMA_ARBITRARY=1
+    networks:
+      - migrate-activecollab
+  nginx:
+    image: nginx:latest
+    container_name: sh-nginx
+    ports:
+      - "8887:8887"
+      - "8888:8888"
+    volumes:
+      - ./servers/ac6.conf:/etc/nginx/conf.d/ac6.conf
+      - ./servers/ac7.conf:/etc/nginx/conf.d/ac7.conf
+      - ./servers/ac8.conf:/etc/nginx/conf.d/ac8.conf
+      - ./activecollab:/var/www/html/app
+    extra_hosts:
+      - "ac6.local:127.0.0.1"
+      - "ac7.local:127.0.0.1"
+      - "ac8.local:127.0.0.1"
+    networks:
+      - migrate-activecollab
+networks:
+  migrate-activecollab:
+    driver: bridge

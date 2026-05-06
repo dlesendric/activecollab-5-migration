@@ -1,0 +1,34 @@
+# --- Tajne i veliki binarni ulazi ---
+.env
+db.sql
+*.sql
+!servers/*.sql
+
+# --- Vendor: AC izvorni kod koji se raspakuje u migrate.sh ---
+# Sve u ./activecollab/ je vlasništvo Active Collab-a (ZIP ekstrakcija),
+# osim .gitkeep koji čuva folder u repu.
+activecollab/*
+!activecollab/.gitkeep
+
+# Config sa DB kredencijalima koji se generiše u init.sh
+activecollab/config/config.php
+
+# --- Radni folderi koje skripte prave ---
+_cache/
+_snapshots/
+_logs/
+_runtime/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# --- Logovi i temp ---
+*.log
+*.pid
+*.tmp
