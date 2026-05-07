@@ -14,7 +14,6 @@ LOG_FILE="${LOG_DIR}/init-$(date +%Y%m%d-%H%M%S).log"
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 die() { echo "[$(date '+%H:%M:%S')] GREŠKA: $*" | tee -a "$LOG_FILE" >&2; exit 1; }
 
-AC_DIR="/var/www/html/app/activecollab"
 INITIAL_VERSION="5.8.7"
 
 # ---------------------------------------------------------------------------
@@ -33,6 +32,10 @@ set -a; source "${SCRIPT_DIR}/.env"; set +a
 
 [[ -n "${DB_NAME:-}" ]]     || die ".env ne sadrži DB_NAME."
 [[ -n "${DB_DATABASE:-}" ]] || die ".env ne sadrži DB_DATABASE."
+[[ -n "${DB_HOST:-}" ]]     || die ".env ne sadrži DB_HOST."
+[[ -n "${DB_USER:-}" ]]     || die ".env ne sadrži DB_USER."
+[[ -n "${DB_PASS:-}" ]]     || die ".env ne sadrži DB_PASS."
+[[ -n "${AC_DIR:-}" ]]      || die ".env ne sadrži AC_DIR."
 
 SQL_FILE="${SCRIPT_DIR}/${DB_NAME}"
 [[ -f "$SQL_FILE" ]] || die "SQL dump '${SQL_FILE}' nije pronađen."
@@ -69,12 +72,12 @@ printf '<?php\n\n  const APPLICATION_VERSION = '"'"'%s'"'"';\n' "$INITIAL_VERSIO
 # ---------------------------------------------------------------------------
 # 4. Čekaj MySQL
 # ---------------------------------------------------------------------------
-log "Čekam MySQL na hostu 'mysql' (timeout ~120s)..."
+log "Čekam MySQL na hostu '${DB_HOST}' (timeout ~120s)..."
 for i in $(seq 1 24); do
-    if mysqladmin ping -h mysql -uroot -proot --silent 2>/dev/null; then
+    if mysqladmin ping -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; then
         log "MySQL je spreman."; break
     fi
-    [[ $i -lt 24 ]] || die "MySQL nije odgovorio. Proverite da li je migrate-db kontejner podignut."
+    [[ $i -lt 24 ]] || die "MySQL nije odgovorio na hostu '${DB_HOST}'."
     sleep 5
 done
 
@@ -82,14 +85,14 @@ done
 # 5. Drop & create baze
 # ---------------------------------------------------------------------------
 log "Kreiram čistu bazu '${DB_DATABASE}'..."
-mysql -h mysql -uroot -proot \
+mysql -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" \
     -e "DROP DATABASE IF EXISTS ${DB_DATABASE}; CREATE DATABASE ${DB_DATABASE} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # ---------------------------------------------------------------------------
 # 6. Import SQL dumpa
 # ---------------------------------------------------------------------------
 log "Uvozim '${SQL_FILE}' (~244 MB, može potrajati nekoliko minuta)..."
-sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' "$SQL_FILE" | mysql -h mysql -uroot -proot "${DB_DATABASE}"
+sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' "$SQL_FILE" | mysql -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_DATABASE}"
 log "Import završen."
 
 # ---------------------------------------------------------------------------

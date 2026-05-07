@@ -18,9 +18,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-AC_ROOT="/var/www/html/app/activecollab"
-VERSION_PHP="${AC_ROOT}/config/version.php"
-
 SNAPSHOT_DIR="${SCRIPT_DIR}/_snapshots"
 LOG_DIR="${SCRIPT_DIR}/_logs"
 LOG_FILE="${LOG_DIR}/migrate-$(date +%Y%m%d-%H%M%S).log"
@@ -140,13 +137,20 @@ fi
 set -a; source "${SCRIPT_DIR}/.env"; set +a
 
 [[ -n "${DB_DATABASE:-}" ]] || die ".env ne sadrži DB_DATABASE."
+[[ -n "${DB_HOST:-}" ]]     || die ".env ne sadrži DB_HOST."
+[[ -n "${DB_USER:-}" ]]     || die ".env ne sadrži DB_USER."
+[[ -n "${DB_PASS:-}" ]]     || die ".env ne sadrži DB_PASS."
+[[ -n "${AC_DIR:-}" ]]      || die ".env ne sadrži AC_DIR."
 
-log "Proveravam MySQL..."
+AC_ROOT="${AC_DIR}"
+VERSION_PHP="${AC_ROOT}/config/version.php"
+
+log "Proveravam MySQL na hostu '${DB_HOST}'..."
 for i in $(seq 1 12); do
-    if mysqladmin ping -h mysql -uroot -proot --silent 2>/dev/null; then
+    if mysqladmin ping -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; then
         log "MySQL spreman."; break
     fi
-    [[ $i -lt 12 ]] || die "MySQL nije odgovorio. Da li je migrate-db podignut?"
+    [[ $i -lt 12 ]] || die "MySQL nije odgovorio na hostu '${DB_HOST}'."
     sleep 5
 done
 
@@ -158,7 +162,7 @@ find_zip() {
     local version="$1"
     local name="activecollab-${version}.zip"
     if   [[ -f "${SCRIPT_DIR}/activecollab/${name}" ]]; then echo "${SCRIPT_DIR}/activecollab/${name}"
-    elif [[ -f "/var/www/html/app/${name}"          ]]; then echo "/var/www/html/app/${name}"
+    elif [[ -f "${AC_ROOT}/${name}"                ]]; then echo "${AC_ROOT}/${name}"
     else die "ZIP nije pronađen: ${name}  (stavite ga u activecollab/)"; fi
 }
 
@@ -213,7 +217,7 @@ snapshot_db() {
     local version="$1"
     local out="${SNAPSHOT_DIR}/after-${version}.sql.gz"
     log "Snimam snapshot → $(basename "$out")"
-    mysqldump -h mysql -uroot -proot --single-transaction "${DB_DATABASE}" | gzip > "$out"
+    mysqldump -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" --single-transaction "${DB_DATABASE}" | gzip > "$out"
     log "Snapshot ok ($(du -h "$out" | cut -f1))."
 }
 
@@ -243,7 +247,7 @@ smoke_test() {
     fi
 
     local count
-    count=$(mysql -h mysql -uroot -proot -sN "${DB_DATABASE}" \
+    count=$(mysql -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" -sN "${DB_DATABASE}" \
         -e "SELECT COUNT(*) FROM executed_model_migrations WHERE migration = '${class_name}'" 2>/dev/null || echo "0")
 
     if [[ "${count:-0}" -gt 0 ]]; then
