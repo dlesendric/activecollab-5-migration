@@ -5,10 +5,10 @@ set -euo pipefail
 # migrate.sh — Sekvencijalna nadogradnja ActiveCollab → latest
 #
 # Pokreni unutar migrate-app kontejnera:
-#   sh /migrate/migrate.sh
-#   sh /migrate/migrate.sh --from 6.0.263
-#   sh /migrate/migrate.sh --from final
-#   sh /migrate/migrate.sh --help
+#   bash /migrate/migrate.sh
+#   bash /migrate/migrate.sh --from 6.0.263
+#   bash /migrate/migrate.sh --from final
+#   bash /migrate/migrate.sh --help
 #
 # Tok:
 #   1. STEPS — detektuju se automatski iz ZIP fajlova u activecollab/
@@ -26,10 +26,27 @@ mkdir -p "$SNAPSHOT_DIR" "$LOG_DIR"
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 die() { echo "[$(date '+%H:%M:%S')] GREŠKA: $*" | tee -a "$LOG_FILE" >&2; exit 1; }
 
-FINAL_PHP="/usr/bin/php83"
-PHP74="/usr/bin/php74"
-PHP83="/usr/bin/php83"
-PHP_THRESHOLD="7.4.0"   # verzije >= ove zahtevaju PHP 8.3
+# ---------------------------------------------------------------------------
+# Učitaj .env — mora biti pre build_steps (PHP putanje)
+# ---------------------------------------------------------------------------
+[[ -f "${SCRIPT_DIR}/.env" ]] || die ".env nije pronađen."
+set -a; source "${SCRIPT_DIR}/.env"; set +a
+
+[[ -n "${DB_DATABASE:-}" ]]  || die ".env ne sadrži DB_DATABASE."
+[[ -n "${DB_HOST:-}" ]]      || die ".env ne sadrži DB_HOST."
+[[ -n "${DB_USER:-}" ]]      || die ".env ne sadrži DB_USER."
+[[ -n "${DB_PASS:-}" ]]      || die ".env ne sadrži DB_PASS."
+[[ -n "${AC_DIR:-}" ]]       || die ".env ne sadrži AC_DIR."
+[[ -n "${PHP_BIN_74:-}" ]]   || die ".env ne sadrži PHP_BIN_74."
+[[ -n "${PHP_BIN_83:-}" ]]   || die ".env ne sadrži PHP_BIN_83."
+
+AC_ROOT="${AC_DIR}"
+VERSION_PHP="${AC_ROOT}/config/version.php"
+
+FINAL_PHP="${PHP_BIN_83}"
+PHP74="${PHP_BIN_74}"
+PHP83="${PHP_BIN_83}"
+PHP_THRESHOLD="7.4.0"   # verzije >= ove zahtevaju PHP_BIN_83
 
 # ---------------------------------------------------------------------------
 # Helpers za poređenje verzija i PHP selekciju
@@ -90,7 +107,7 @@ usage() {
     local avail=""
     for s in "${STEPS[@]}"; do avail+="$(echo "$s" | awk '{print $1}') | "; done
     cat <<EOF
-Upotreba: sh /migrate/migrate.sh [OPCIJE]
+Upotreba: bash /migrate/migrate.sh [OPCIJE]
 
   --from <verzija>   Počni od stepenice (target verzija). Dostupno: ${avail}final
   --help             Prikaži ovaj tekst
@@ -131,20 +148,8 @@ if [[ -n "$FROM_VERSION" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Učitaj .env i provjeri MySQL
+# MySQL check
 # ---------------------------------------------------------------------------
-[[ -f "${SCRIPT_DIR}/.env" ]] || die ".env nije pronađen. Pokrenite init.sh prvo."
-set -a; source "${SCRIPT_DIR}/.env"; set +a
-
-[[ -n "${DB_DATABASE:-}" ]] || die ".env ne sadrži DB_DATABASE."
-[[ -n "${DB_HOST:-}" ]]     || die ".env ne sadrži DB_HOST."
-[[ -n "${DB_USER:-}" ]]     || die ".env ne sadrži DB_USER."
-[[ -n "${DB_PASS:-}" ]]     || die ".env ne sadrži DB_PASS."
-[[ -n "${AC_DIR:-}" ]]      || die ".env ne sadrži AC_DIR."
-
-AC_ROOT="${AC_DIR}"
-VERSION_PHP="${AC_ROOT}/config/version.php"
-
 log "Proveravam MySQL na hostu '${DB_HOST}'..."
 for i in $(seq 1 12); do
     if mysqladmin ping -h "${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; then

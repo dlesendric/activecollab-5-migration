@@ -64,7 +64,7 @@ If PHP binaries are located elsewhere on your server, update the `STEPS` and `FI
 ### Step 1 — Initialization
 
 ```bash
-sh init.sh
+bash init.sh
 ```
 
 This command:
@@ -77,7 +77,7 @@ This command:
 ### Step 2 — Migration
 
 ```bash
-sh migrate.sh
+bash migrate.sh
 ```
 
 The migration runs through all steps automatically and finishes with a final upgrade that downloads the latest version.
@@ -87,8 +87,8 @@ The migration runs through all steps automatically and finishes with a final upg
 If the migration was interrupted, you can resume from a specific step:
 
 ```bash
-sh migrate.sh --from 7.1.382
-sh migrate.sh --from final    # final upgrade only
+bash migrate.sh --from 7.1.382
+bash migrate.sh --from final    # final upgrade only
 ```
 
 Available values for `--from`: `5.8.7`, `6.0.7`, `7.1.0`, `7.1.382`, `7.4.766`, `final`

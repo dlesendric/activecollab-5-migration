@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # init.sh — Bootstrap: pokretanje baze i uvoz SQL dumpa
-# Pokreni unutar migrate-app kontejnera: sh /migrate/init.sh
+# Pokreni unutar migrate-app kontejnera: bash /migrate/init.sh
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -97,5 +97,5 @@ log "Import završen."
 
 # ---------------------------------------------------------------------------
 log "================================================================"
-log "Init OK — pokrenite: sh /migrate/migrate.sh"
+log "Init OK — pokrenite: bash /migrate/migrate.sh"
 log "================================================================"

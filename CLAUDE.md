@@ -15,12 +15,12 @@ Korisnik (Darko) pravi ZIP release-ove AC verzija i smešta ih lokalno.
 ```bash
 # 1. Postavi .env (DB_NAME=db.sql ili naziv SQL fajla)
 # 2. Unutar migrate-app kontejnera:
-sh /migrate/init.sh          # reset baze, import dumpa
-sh /migrate/migrate.sh       # puna migracija
+bash /migrate/init.sh          # reset baze, import dumpa
+bash /migrate/migrate.sh       # puna migracija
 
 # Nastavak od određene tačke:
-sh /migrate/migrate.sh --from 7.1.382
-sh /migrate/migrate.sh --from final   # samo finalni upgrade
+bash /migrate/migrate.sh --from 7.1.382
+bash /migrate/migrate.sh --from final   # samo finalni upgrade
 ```
 
 ---

@@ -64,7 +64,7 @@ Ako su PHP binariji na drugoj lokaciji na vašem serveru, izmenite promenljive `
 ### Korak 1 — Inicijalizacija
 
 ```bash
-sh init.sh
+bash init.sh
 ```
 
 Ova komanda:
@@ -77,7 +77,7 @@ Ova komanda:
 ### Korak 2 — Migracija
 
 ```bash
-sh migrate.sh
+bash migrate.sh
 ```
 
 Migracija prolazi kroz sve stepenice automatski i na kraju pokreće finalni upgrade koji preuzima najnoviju verziju.
@@ -87,8 +87,8 @@ Migracija prolazi kroz sve stepenice automatski i na kraju pokreće finalni upgr
 Ako je migracija prekinuta, možete nastaviti od konkretne stepenice:
 
 ```bash
-sh migrate.sh --from 7.1.382
-sh migrate.sh --from final    # samo finalni upgrade
+bash migrate.sh --from 7.1.382
+bash migrate.sh --from final    # samo finalni upgrade
 ```
 
 Dostupne vrednosti za `--from`: `5.8.7`, `6.0.7`, `7.1.0`, `7.1.382`, `7.4.766`, `final`
