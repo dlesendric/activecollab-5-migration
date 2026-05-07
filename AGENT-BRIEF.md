@@ -1,6 +1,11 @@
 # Brief za coding agenta — Automatska migracija ActiveCollab 5.8.7 → 8.0.31
 
-> **Status:** Specifikacija. Ovaj dokument opisuje **šta agent treba da napiše**.
+> **Status:** Implementacija u toku.
+> **Odluke donete 2026-05-06:**
+> - ZIPovi se **ručno kopiraju u `_cache/`** (download logika u skripti je fallback — korisnik nema sesiju za automatski download)
+> - Baza je **MariaDB 10.11** umesto MySQL 8.0 (dump je sa MariaDB 10.2 — kompatibilnost)
+> - `docker compose` je za **internu verifikaciju**, krajnji korisnik ga ne pokreće direktno
+> - `docker compose` plugin (ne stari `docker-compose` standalone)
 > Agent **ne pokreće** migraciju niti dira korisničku bazu — samo isporučuje
 > radne `init.sh`, `migrate.sh`, `Dockerfile`, izmene `docker-compose.yaml` i
 > prateće config fajlove. Verifikacija da sve radi je obaveza agenta unutar
@@ -349,17 +354,13 @@ Izmene/novi fajlovi u `helpdesk-migrate/`:
 
 ---
 
-## 10. Otvoreno pitanje za korisnika (Darka) pre nego što agent počne
+## 10. Rešena pitanja
 
-- Da li krajnji korisnik koji pokreće migraciju može da ima Docker Desktop, ili
-  je strogo CLI Docker Engine? (Utiče na `docker compose` vs `docker-compose`.)
-- Da li `downloads.activecollab.com/<LICENSE_KEY>/activecollab-<VERSION>.zip`
-  zaista služi tačno te stare verzije (6.0.7, 7.1.0, 7.1.382), ili postoji
-  poseban "legacy releases" endpoint? Agent neka prvo testira `curl -I` pre
-  pisanja kompletnog download koda.
-
-Ova pitanja agent **ne sme** sam da odluči — postavlja ih korisniku pre
-finalizacije.
+| Pitanje | Odluka |
+|---|---|
+| `docker compose` vs `docker-compose` | `docker compose` plugin; ovo je interni alat, ne za krajnjeg korisnika |
+| Download URL format | Nije verifikovan; korisnik ručno kopira ZIPove u `_cache/`. Fallback download logika ostaje u skripti. |
+| MySQL vs MariaDB | MariaDB 10.11 (dump je sa MariaDB 10.2) |
 
 ---
 
