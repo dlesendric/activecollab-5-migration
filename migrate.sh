@@ -100,9 +100,10 @@ done
 find_zip() {
     local version="$1"
     local name="activecollab-${version}.zip"
-    if   [[ -f "${SCRIPT_DIR}/_cache/${name}"  ]]; then echo "${SCRIPT_DIR}/_cache/${name}"
-    elif [[ -f "/var/www/html/app/${name}"     ]]; then echo "/var/www/html/app/${name}"
-    else die "ZIP nije pronađen: ${name}  (stavite ga u _cache/ ili activecollab/)"; fi
+    if   [[ -f "${SCRIPT_DIR}/activecollab/${name}" ]]; then echo "${SCRIPT_DIR}/activecollab/${name}"
+    elif [[ -f "${SCRIPT_DIR}/_cache/${name}"       ]]; then echo "${SCRIPT_DIR}/_cache/${name}"
+    elif [[ -f "/var/www/html/app/${name}"          ]]; then echo "/var/www/html/app/${name}"
+    else die "ZIP nije pronađen: ${name}  (stavite ga u activecollab/ ili _cache/)"; fi
 }
 
 get_db_version() {
@@ -144,7 +145,9 @@ run_final_upgrade() {
     cd "${AC_ROOT}"
     "$php_bin" -d memory_limit=2G -d max_execution_time=0 tasks/activecollab-cli.php upgrade
     cd - > /dev/null
-    log "Finalni upgrade na ${to_ver} završen."
+    local actual_ver
+    actual_ver=$(get_db_version)
+    log "Finalni upgrade na ${actual_ver:-$to_ver} završen."
 }
 
 snapshot_db() {
