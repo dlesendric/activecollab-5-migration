@@ -11,7 +11,7 @@ Upgrade path: `5.8.7 → 6.0.7 → 7.1.0 → 7.1.382 → 7.4.766 → latest`
 - PHP 7.4 and PHP 8.3 available on the server
 - MySQL or MariaDB
 - `unzip`, `mysqladmin`, `mysqldump`
-- AC version ZIP archives placed in the `_cache/` directory (see section below)
+- AC version ZIP archives placed in the `activecollab/` directory (see section below)
 
 ### Required ZIP archives
 

@@ -31,7 +31,8 @@ done
 [[ -f "${SCRIPT_DIR}/.env" ]] || die "Fajl .env nije pronađen u ${SCRIPT_DIR}."
 set -a; source "${SCRIPT_DIR}/.env"; set +a
 
-[[ -n "${DB_NAME:-}" ]] || die ".env ne sadrži DB_NAME."
+[[ -n "${DB_NAME:-}" ]]     || die ".env ne sadrži DB_NAME."
+[[ -n "${DB_DATABASE:-}" ]] || die ".env ne sadrži DB_DATABASE."
 
 SQL_FILE="${SCRIPT_DIR}/${DB_NAME}"
 [[ -f "$SQL_FILE" ]] || die "SQL dump '${SQL_FILE}' nije pronađen."
@@ -80,15 +81,15 @@ done
 # ---------------------------------------------------------------------------
 # 5. Drop & create baze
 # ---------------------------------------------------------------------------
-log "Kreiram čistu bazu 'activecollab'..."
+log "Kreiram čistu bazu '${DB_DATABASE}'..."
 mysql -h mysql -uroot -proot \
-    -e "DROP DATABASE IF EXISTS activecollab; CREATE DATABASE activecollab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    -e "DROP DATABASE IF EXISTS ${DB_DATABASE}; CREATE DATABASE ${DB_DATABASE} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # ---------------------------------------------------------------------------
 # 6. Import SQL dumpa
 # ---------------------------------------------------------------------------
 log "Uvozim '${SQL_FILE}' (~244 MB, može potrajati nekoliko minuta)..."
-sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' "$SQL_FILE" | mysql -h mysql -uroot -proot activecollab
+sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' "$SQL_FILE" | mysql -h mysql -uroot -proot "${DB_DATABASE}"
 log "Import završen."
 
 # ---------------------------------------------------------------------------

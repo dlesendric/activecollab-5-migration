@@ -84,6 +84,8 @@ fi
 [[ -f "${SCRIPT_DIR}/.env" ]] || die ".env nije pronađen. Pokrenite init.sh prvo."
 set -a; source "${SCRIPT_DIR}/.env"; set +a
 
+[[ -n "${DB_DATABASE:-}" ]] || die ".env ne sadrži DB_DATABASE."
+
 log "Proveravam MySQL..."
 for i in $(seq 1 12); do
     if mysqladmin ping -h mysql -uroot -proot --silent 2>/dev/null; then
@@ -101,13 +103,12 @@ find_zip() {
     local version="$1"
     local name="activecollab-${version}.zip"
     if   [[ -f "${SCRIPT_DIR}/activecollab/${name}" ]]; then echo "${SCRIPT_DIR}/activecollab/${name}"
-    elif [[ -f "${SCRIPT_DIR}/_cache/${name}"       ]]; then echo "${SCRIPT_DIR}/_cache/${name}"
     elif [[ -f "/var/www/html/app/${name}"          ]]; then echo "/var/www/html/app/${name}"
-    else die "ZIP nije pronađen: ${name}  (stavite ga u activecollab/ ili _cache/)"; fi
+    else die "ZIP nije pronađen: ${name}  (stavite ga u activecollab/)"; fi
 }
 
 get_db_version() {
-    mysql -h mysql -uroot -proot -sN activecollab \
+    mysql -h mysql -uroot -proot -sN "${DB_DATABASE}" \
         -e "SELECT value FROM config_options WHERE name='version' LIMIT 1" 2>/dev/null \
         | tr -d '\r\n' || echo ""
 }
@@ -154,7 +155,7 @@ snapshot_db() {
     local version="$1"
     local out="${SNAPSHOT_DIR}/after-${version}.sql.gz"
     log "Snimam snapshot → $(basename "$out")"
-    mysqldump -h mysql -uroot -proot --single-transaction activecollab | gzip > "$out"
+    mysqldump -h mysql -uroot -proot --single-transaction "${DB_DATABASE}" | gzip > "$out"
     log "Snapshot ok ($(du -h "$out" | cut -f1))."
 }
 
@@ -184,7 +185,7 @@ smoke_test() {
     fi
 
     local count
-    count=$(mysql -h mysql -uroot -proot -sN activecollab \
+    count=$(mysql -h mysql -uroot -proot -sN "${DB_DATABASE}" \
         -e "SELECT COUNT(*) FROM executed_model_migrations WHERE migration = '${class_name}'" 2>/dev/null || echo "0")
 
     if [[ "${count:-0}" -gt 0 ]]; then

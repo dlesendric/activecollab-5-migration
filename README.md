@@ -11,7 +11,7 @@ Upgrade putanja: `5.8.7 → 6.0.7 → 7.1.0 → 7.1.382 → 7.4.766 → latest`
 - PHP 7.4 i PHP 8.3 dostupni na serveru
 - MySQL ili MariaDB
 - `unzip`, `mysqladmin`, `mysqldump`
-- ZIP arhive AC verzija smeštene u `_cache/` direktorijum (vidite sekciju ispod)
+- ZIP arhive AC verzija smeštene u `activecollab/` direktorijum (vidite sekciju ispod)
 
 ### Potrebne ZIP arhive
 
