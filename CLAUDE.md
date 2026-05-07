@@ -3,7 +3,7 @@
 ## Šta je ovaj projekat
 
 Docker-based alat za migraciju ActiveCollab self-hosted instalacija.
-Upgrade putanja: **5.8.7 → 6.0.7 → 7.1.0 → 7.1.382 → 7.4.766 → 8.0.31+**
+Upgrade putanja: **5.8.7 → 7.1.382 → 7.4.766 → 8.0.318+**
 
 Korisnik (Darko) pravi ZIP release-ove AC verzija i smešta ih lokalno.
 `init.sh` i `migrate.sh` se pokreću **unutar `migrate-app` kontejnera**.
@@ -39,11 +39,11 @@ PHP binariji: `/usr/bin/php74`, `/usr/bin/php83`
 
 | Stepenica | PHP | Razlog |
 |---|---|---|
-| 5.8.7 → 6.0.7 | PHP 7.4 | |
-| 6.0.7 → 7.1.0 | PHP 7.4 | PHP 8.x puca na `Angie\Error::$file` (untyped vs typed) |
-| 7.1.0 → 7.1.382 | PHP 7.4 | Isti razlog |
+| 5.8.7 → 7.1.382 | PHP 7.4 | PHP 8.x puca na `Angie\Error::$file` (untyped vs typed) |
 | 7.1.382 → 7.4.766 | PHP 8.3 | AC 7.4.766 koristi union types — zahteva PHP 8.0+ |
 | finalni upgrade | PHP 8.3 | |
+
+7.1.382 kumulativno sadrži sve migracije od 5.8.7 naviše — 6.0.x i 7.1.0 ZIP-ovi nisu potrebni.
 
 ---
 
@@ -56,7 +56,10 @@ PHP binariji: `/usr/bin/php74`, `/usr/bin/php83`
 - Resetuje `version.php` na 5.8.7
 
 ### migrate.sh
-- STEPS niz ide samo do 7.4.766, sa `--dont-download-latest`
+- `build_steps()` automatski skenira `activecollab/*.zip`, sortira ih po verziji — **svaki ZIP je jedan korak** (nije par from→to)
+- PHP prag: verzije ≥ 7.4.0 dobijaju PHP 8.3, ostale PHP 7.4 (promenljiva `PHP_THRESHOLD`)
+- `run_step` ekstraktuje i upgraduje tačno na tu verziju; AC kumulativno pokreće sve migracije koje još nisu izvršene
+- Verzija se čita iz `version.php` (`get_file_version`), ne iz baze — AC piše `define('APPLICATION_VERSION', ...)` u fajl, ne u `config_options`
 - Finalni upgrade (`run_final_upgrade`) pokreće `php tasks/activecollab-cli.php upgrade` **bez** `--dont-download-latest` — ista komanda kao na korisnikovom serveru, AC sam preuzima novu verziju
 - `extract_version_folder` i `set_version` se **ne pozivaju** za finalni upgrade (AC to radi sam)
 
@@ -90,14 +93,14 @@ pre nego što `2025-04-14-added-reference-column-to-remote-invoices` pokuša fin
 
 ## Trenutni status
 
-**Sve stepenice prolaze, uključujući finalni upgrade.** Migracija 5.8.7 → 8.0.31+ radi end-to-end.
+**Sve stepenice prolaze, uključujući finalni upgrade.** Migracija 5.8.7 → 8.0.318 radi end-to-end sa samo dva ZIP-a (7.1.382 + 7.4.766).
 
 ---
 
-## Fajlovi koji se menjaju u AC kodu (8.0.317)
+## Fajlovi koji se menjaju u AC kodu (8.0.318)
 
 ```
-activecollab/activecollab/activecollab/8.0.317/migrations/
+activecollab/activecollab/activecollab/8.0.318/migrations/
   2025-04-11-add-integrations-updated-on/   ← pomereno sa 2026-01-20
     MigrateAddIntegrationsUpdatedOn.class.php
 ```
@@ -108,11 +111,9 @@ Sve ostalo u AC kodu je netaknuto.
 
 ## Lokacija ZIP-ova
 
-ZIPs se stavljaju u `_cache/` ili direktno u `activecollab/` direktorijum:
+ZIPs se stavljaju u `activecollab/` direktorijum. Minimalni set:
 ```
-activecollab-6.0.7.zip
-activecollab-7.1.0.zip
 activecollab-7.1.382.zip
 activecollab-7.4.766.zip
 ```
-Finalna verzija (8.0.31+) se preuzima automatski.
+Finalna verzija (8.0.318+) se preuzima automatski.

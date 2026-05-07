@@ -2,15 +2,16 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# migrate.sh — Sekvencijalna nadogradnja ActiveCollab 5.8.7 → 8.0.31
+# migrate.sh — Sekvencijalna nadogradnja ActiveCollab → latest
 #
 # Pokreni unutar migrate-app kontejnera:
 #   sh /migrate/migrate.sh
-#   sh /migrate/migrate.sh --from 6.0.7
+#   sh /migrate/migrate.sh --from 6.0.263
+#   sh /migrate/migrate.sh --from final
 #   sh /migrate/migrate.sh --help
 #
 # Tok:
-#   1. STEPS — kontrolisane stepenice 5.8.7 → 7.4.766 (specifični PHP, --dont-download-latest)
+#   1. STEPS — detektuju se automatski iz ZIP fajlova u activecollab/
 #   2. Finalni upgrade — php tasks/activecollab-cli.php upgrade (bez --dont-download-latest)
 #      Ova komanda je ista kao ona koju korisnik pokreće na svom serveru.
 # ---------------------------------------------------------------------------
@@ -28,23 +29,73 @@ mkdir -p "$SNAPSHOT_DIR" "$LOG_DIR"
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 die() { echo "[$(date '+%H:%M:%S')] GREŠKA: $*" | tee -a "$LOG_FILE" >&2; exit 1; }
 
-# Stepenice: "from_ver  to_ver  php_bin"
-# Idu do 7.4.766 — finalni upgrade (8.0.31) se radi zasebno bez --dont-download-latest
-STEPS=(
-    "5.8.7   6.0.7   /usr/bin/php74"
-    "6.0.7   7.1.0   /usr/bin/php74"
-    "7.1.0   7.1.382 /usr/bin/php74"
-    "7.1.382 7.4.766 /usr/bin/php83"
-)
-
-FINAL_VERSION="8.0.31"
 FINAL_PHP="/usr/bin/php83"
+PHP74="/usr/bin/php74"
+PHP83="/usr/bin/php83"
+PHP_THRESHOLD="7.4.0"   # verzije >= ove zahtevaju PHP 8.3
 
+# ---------------------------------------------------------------------------
+# Helpers za poređenje verzija i PHP selekciju
+# ---------------------------------------------------------------------------
+
+version_ge() {
+    # Vraća 0 (true) ako je $1 >= $2
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
+php_for_version() {
+    if version_ge "$1" "$PHP_THRESHOLD"; then echo "$PHP83"; else echo "$PHP74"; fi
+}
+
+# ---------------------------------------------------------------------------
+# Detektuj stepenice iz ZIP fajlova u activecollab/
+# ---------------------------------------------------------------------------
+STEPS=()
+
+build_steps() {
+    local zip_dir="${SCRIPT_DIR}/activecollab"
+    local versions=()
+
+    for zip in "${zip_dir}"/activecollab-*.zip; do
+        [[ -f "$zip" ]] || continue
+        local ver
+        ver=$(basename "$zip" .zip)
+        ver="${ver#activecollab-}"
+        versions+=("$ver")
+    done
+
+    [[ ${#versions[@]} -gt 0 ]] || die "Nema ZIP arhiva u ${zip_dir}/. Preuzmite ih i smestite tamo."
+
+    local sorted=()
+    while IFS= read -r ver; do
+        sorted+=("$ver")
+    done < <(printf '%s\n' "${versions[@]}" | sort -V)
+
+    for ver in "${sorted[@]}"; do
+        STEPS+=("${ver} $(php_for_version "$ver")")
+    done
+
+    if [[ ${#STEPS[@]} -gt 0 ]]; then
+        log "Detektovane stepenice:"
+        for step in "${STEPS[@]}"; do
+            read -r t p <<< "$step"
+            log "  → ${t}  [${p}]"
+        done
+    fi
+}
+
+build_steps
+
+# ---------------------------------------------------------------------------
+# Upotreba
+# ---------------------------------------------------------------------------
 usage() {
+    local avail=""
+    for s in "${STEPS[@]}"; do avail+="$(echo "$s" | awk '{print $1}') | "; done
     cat <<EOF
 Upotreba: sh /migrate/migrate.sh [OPCIJE]
 
-  --from <verzija>   Počni od stepenice: 5.8.7 | 6.0.7 | 7.1.0 | 7.1.382 | 7.4.766 | final
+  --from <verzija>   Počni od stepenice (target verzija). Dostupno: ${avail}final
   --help             Prikaži ovaj tekst
 EOF
 }
@@ -69,12 +120,16 @@ if [[ -n "$FROM_VERSION" ]]; then
     else
         found=0
         for i in "${!STEPS[@]}"; do
-            from_ver=$(echo "${STEPS[$i]}" | awk '{print $1}')
-            if [[ "$from_ver" == "$FROM_VERSION" ]]; then
+            to_ver=$(echo "${STEPS[$i]}" | awk '{print $1}')
+            if [[ "$to_ver" == "$FROM_VERSION" ]]; then
                 START_IDX=$i; found=1; break
             fi
         done
-        [[ $found -eq 1 ]] || die "Nepoznata verzija za --from: '$FROM_VERSION'  (dostupno: 5.8.7 | 6.0.7 | 7.1.0 | 7.1.382 | 7.4.766 | final)"
+        if [[ $found -eq 0 ]]; then
+            avail=""
+            for s in "${STEPS[@]}"; do avail+="$(echo "$s" | awk '{print $1}') | "; done
+            die "Nepoznata verzija za --from: '$FROM_VERSION'  (dostupno: ${avail}final)"
+        fi
     fi
 fi
 
@@ -107,10 +162,13 @@ find_zip() {
     else die "ZIP nije pronađen: ${name}  (stavite ga u activecollab/)"; fi
 }
 
-get_db_version() {
-    mysql -h mysql -uroot -proot -sN "${DB_DATABASE}" \
-        -e "SELECT value FROM config_options WHERE name='version' LIMIT 1" 2>/dev/null \
-        | tr -d '\r\n' || echo ""
+get_file_version() {
+    # Radi za oba formata koja AC koristi:
+    #   const APPLICATION_VERSION = '7.4.766';      (naš set_version)
+    #   define('APPLICATION_VERSION', '8.0.318');   (AC-ov updateVersionFile)
+    grep "APPLICATION_VERSION" "$VERSION_PHP" 2>/dev/null \
+        | sed "s/.*'\([^']*\)'[^']*$/\1/" \
+        | head -1
 }
 
 extract_version_folder() {
@@ -147,7 +205,7 @@ run_final_upgrade() {
     "$php_bin" -d memory_limit=2G -d max_execution_time=0 tasks/activecollab-cli.php upgrade
     cd - > /dev/null
     local actual_ver
-    actual_ver=$(get_db_version)
+    actual_ver=$(get_file_version)
     log "Finalni upgrade na ${actual_ver:-$to_ver} završen."
 }
 
@@ -199,17 +257,17 @@ smoke_test() {
 # Jedna stepenica
 # ---------------------------------------------------------------------------
 run_step() {
-    local from_ver to_ver php_bin
-    read -r from_ver to_ver php_bin <<< "$1"
+    local to_ver php_bin
+    read -r to_ver php_bin <<< "$1"
 
     log "================================================================"
-    log "STEPENICA  ${from_ver} → ${to_ver}   [${php_bin}]"
+    log "STEPENICA  → ${to_ver}   [${php_bin}]"
     log "================================================================"
 
-    local db_ver
-    db_ver=$(get_db_version)
-    if [[ -n "$db_ver" && "$db_ver" == "$to_ver" ]]; then
-        log "Baza već na ${to_ver} — preskačem."; return 0
+    local cur_ver
+    cur_ver=$(get_file_version)
+    if [[ -n "$cur_ver" && "$cur_ver" == "$to_ver" ]]; then
+        log "Već na ${to_ver} — preskačem."; return 0
     fi
 
     extract_version_folder "$to_ver"
@@ -220,10 +278,10 @@ run_step() {
 }
 
 # ---------------------------------------------------------------------------
-# Glavna petlja — kontrolisane stepenice
+# Glavna petlja — stepenice
 # ---------------------------------------------------------------------------
-if [[ $SKIP_STEPS -eq 0 ]]; then
-    log "Pokretam migraciju: $(echo "${STEPS[$START_IDX]}" | awk '{print $1}') → ${FINAL_VERSION}"
+if [[ $SKIP_STEPS -eq 0 && ${#STEPS[@]} -gt 0 ]]; then
+    log "Pokretam migraciju: $(get_file_version) → latest"
     for (( i = START_IDX; i < ${#STEPS[@]}; i++ )); do
         run_step "${STEPS[$i]}"
     done
@@ -234,22 +292,19 @@ fi
 # Ista komanda koja se pokreće na korisnikovom serveru
 # ---------------------------------------------------------------------------
 log "================================================================"
-log "FINALNI UPGRADE  → ${FINAL_VERSION}   [${FINAL_PHP}]"
+log "FINALNI UPGRADE  [${FINAL_PHP}]"
 log "================================================================"
 
-db_ver=$(get_db_version)
-if [[ -n "$db_ver" && "$db_ver" == "$FINAL_VERSION" ]]; then
-    log "Baza već na ${FINAL_VERSION} — preskačem finalni upgrade."
-else
-    run_final_upgrade "$FINAL_PHP" "$FINAL_VERSION"
-    local actual_ver
-    actual_ver=$(get_db_version)
-    snapshot_db "${actual_ver:-$FINAL_VERSION}"
-    smoke_test "${actual_ver:-$FINAL_VERSION}"
-fi
+cur_ver=$(get_file_version)
+log "Trenutna verzija: ${cur_ver:-nepoznato} — pokrećem finalni upgrade..."
+
+run_final_upgrade "$FINAL_PHP" "latest"
+actual_ver=$(get_file_version)
+snapshot_db "${actual_ver:-final}"
+smoke_test "${actual_ver:-final}"
 
 log "================================================================"
-log "Migracija završena! AC ${FINAL_VERSION}+"
+log "Migracija završena! AC ${actual_ver:-latest}"
 log "Snapshotovi: ${SNAPSHOT_DIR}/"
 log "Log: ${LOG_FILE}"
 log "================================================================"

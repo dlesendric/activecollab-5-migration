@@ -18,11 +18,11 @@ Upgrade putanja: `5.8.7 → 6.0.7 → 7.1.0 → 7.1.382 → 7.4.766 → latest`
 Preuzmite sledeće ZIP fajlove i smestite ih u `activecollab/` direktorijum:
 
 ```
-activecollab/activecollab-6.0.7.zip
-activecollab/activecollab-7.1.0.zip
 activecollab/activecollab-7.1.382.zip
 activecollab/activecollab-7.4.766.zip
 ```
+
+Skript automatski detektuje dostupne ZIP-ove i gradi redosled koraka. Minimalni set su `7.1.382` i `7.4.766` — ove dve verzije su granične tačke za promenu PHP verzije i kumulativno sadrže sve migracije od `5.8.7` naviše. ZIP-ovi starijih verzija (`6.0.x`, `7.1.0`) nisu potrebni.
 
 ZIP arhive možete preuzeti na [activecollab.com/profile](https://activecollab.com/profile) u sekciji vaše licence, ili ih zatražiti slanjem mejla na [support@activecollab.com](mailto:support@activecollab.com).
 

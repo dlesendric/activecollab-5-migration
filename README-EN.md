@@ -18,11 +18,11 @@ Upgrade path: `5.8.7 → 6.0.7 → 7.1.0 → 7.1.382 → 7.4.766 → latest`
 Download the following ZIP files and place them in the `activecollab/` directory:
 
 ```
-activecollab/activecollab-6.0.7.zip
-activecollab/activecollab-7.1.0.zip
 activecollab/activecollab-7.1.382.zip
 activecollab/activecollab-7.4.766.zip
 ```
+
+The script automatically detects available ZIPs and builds the upgrade sequence. The minimum required set is `7.1.382` and `7.4.766` — these are the PHP version boundary points and cumulatively contain all migrations from `5.8.7` onward. ZIPs for older versions (`6.0.x`, `7.1.0`) are not needed.
 
 You can download the ZIP archives from [activecollab.com/profile](https://activecollab.com/profile) under your license section, or request them by emailing [support@activecollab.com](mailto:support@activecollab.com).
 
